@@ -21,6 +21,7 @@ from .rest.CourseCtl import CourseCtl
 from .rest.FacultyCtl import FacultyCtl
 from .rest.RoleCtl import RoleCtl
 from .rest.MarksheetCtl import MarksheetCtl
+from .rest.SubjectCtl import SubjectCtl
 from .rest.UserCtl import UserCtl, UserLoginCtl, ChangePasswordCtl, ForgotPasswordCtl, UserRegistrationCtl
 
 urlpatterns = [
@@ -38,6 +39,8 @@ urlpatterns = [
     path('api/Role/<int:id>/', RoleCtl.as_view()),
     path('api/Marksheet/', MarksheetCtl.as_view()),
     path('api/Marksheet/<int:id>/', MarksheetCtl.as_view()),
+    path('api/Subject/', SubjectCtl.as_view()),
+    path('api/Subject/<int:id>/', SubjectCtl.as_view()),
     path('api/User/', UserCtl.as_view()),
     path('api/User/<int:id>/', UserCtl.as_view()),
     path('api/User/login/', UserLoginCtl.as_view()),
