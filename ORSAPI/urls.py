@@ -15,36 +15,40 @@ Including another URLconf
 """
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
-from .rest.CollegeCtl import CollegeCtl
-from .rest.StudentCtl import StudentCtl
-from .rest.CourseCtl import CourseCtl
-from .rest.FacultyCtl import FacultyCtl
-from .rest.RoleCtl import RoleCtl
-from .rest.MarksheetCtl import MarksheetCtl
-from .rest.SubjectCtl import SubjectCtl
-from .rest.UserCtl import UserCtl, UserLoginCtl, ChangePasswordCtl, ForgotPasswordCtl, UserRegistrationCtl
+from .rest.CollegeRestCtl import CollegeRestCtl
+from .rest.StudentRestCtl import StudentPreloadRestCtl, StudentRestCtl
+from .rest.CourseRestCtl import CourseRestCtl
+from .rest.FacultyRestCtl import FacultyRestCtl, FacultyPreloadRestCtl
+from .rest.RoleRestCtl import RoleRestCtl
+from .rest.MarksheetRestCtl import MarksheetRestCtl
+from .rest.SubjectRestCtl import SubjectRestCtl, SubjectPreloadRestCtl
+from .rest.UserRestCtl import UserRestCtl, UserLoginRestCtl, ChangePasswordRestCtl, ForgotPasswordRestCtl, UserRegistrationRestCtl, UserPreloadRestCtl
 
 urlpatterns = [
     path('api/token/refresh/', TokenRefreshView.as_view()),
     # REST API routes — must be before the generic catch-all patterns
-    path('api/College/', CollegeCtl.as_view()),
-    path('api/College/<int:id>/', CollegeCtl.as_view()),
-    path('api/Student/', StudentCtl.as_view()),
-    path('api/Student/<int:id>/', StudentCtl.as_view()),
-    path('api/Course/', CourseCtl.as_view()),
-    path('api/Course/<int:id>/', CourseCtl.as_view()),
-    path('api/Faculty/', FacultyCtl.as_view()),
-    path('api/Faculty/<int:id>/', FacultyCtl.as_view()),
-    path('api/Role/', RoleCtl.as_view()),
-    path('api/Role/<int:id>/', RoleCtl.as_view()),
-    path('api/Marksheet/', MarksheetCtl.as_view()),
-    path('api/Marksheet/<int:id>/', MarksheetCtl.as_view()),
-    path('api/Subject/', SubjectCtl.as_view()),
-    path('api/Subject/<int:id>/', SubjectCtl.as_view()),
-    path('api/User/', UserCtl.as_view()),
-    path('api/User/<int:id>/', UserCtl.as_view()),
-    path('api/User/login/', UserLoginCtl.as_view()),
-    path('api/User/change-password/', ChangePasswordCtl.as_view()),
-    path('api/User/forgot-password/', ForgotPasswordCtl.as_view()),
-    path('api/User/register/', UserRegistrationCtl.as_view()),
+    path('api/College/', CollegeRestCtl.as_view()),
+    path('api/College/<int:id>/', CollegeRestCtl.as_view()),
+    path('api/Student/', StudentRestCtl.as_view()),
+    path('api/Student/<int:id>/', StudentRestCtl.as_view()),
+    path('api/Student/preload/', StudentPreloadRestCtl.as_view()),
+    path('api/Course/', CourseRestCtl.as_view()),
+    path('api/Course/<int:id>/', CourseRestCtl.as_view()),
+    path('api/Faculty/', FacultyRestCtl.as_view()),
+    path('api/Faculty/<int:id>/', FacultyRestCtl.as_view()),
+    path('api/Faculty/preload/', FacultyPreloadRestCtl.as_view()),
+    path('api/Role/', RoleRestCtl.as_view()),
+    path('api/Role/<int:id>/', RoleRestCtl.as_view()),
+    path('api/Marksheet/', MarksheetRestCtl.as_view()),
+    path('api/Marksheet/<int:id>/', MarksheetRestCtl.as_view()),
+    path('api/Subject/', SubjectRestCtl.as_view()),
+    path('api/Subject/<int:id>/', SubjectRestCtl.as_view()),
+    path('api/Subject/preload/', SubjectPreloadRestCtl.as_view()),
+    path('api/User/', UserRestCtl.as_view()),
+    path('api/User/<int:id>/', UserRestCtl.as_view()),
+    path('api/User/preload/', UserPreloadRestCtl.as_view()),
+    path('api/User/login/', UserLoginRestCtl.as_view()),
+    path('api/User/change-password/', ChangePasswordRestCtl.as_view()),
+    path('api/User/forgot-password/', ForgotPasswordRestCtl.as_view()),
+    path('api/User/register/', UserRegistrationRestCtl.as_view()),
 ]

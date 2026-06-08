@@ -1,9 +1,9 @@
-from ORSAPI.rest.BaseRestCtl import BaseRestCtl
+﻿from ORSAPI.rest.BaseRestCtl import BaseRestCtl
 from service.models import Course
 from service.Serializers import CourseSerializers
 
 
-class CourseCtl(BaseRestCtl):
+class CourseRestCtl(BaseRestCtl):
     def get_model(self):
         return Course
 

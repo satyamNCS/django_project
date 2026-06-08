@@ -1,12 +1,13 @@
-from datetime import datetime
+﻿from datetime import datetime
 
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from rest_framework.views import APIView
 from ORSAPI.rest.BaseRestCtl import BaseRestCtl
-from service.models import User
+from service.models import User, Role
 from service.Serializers import UserSerializers
 from service.service.UserService import UserService
 from service.service.ForgetPasswordService import ForgetPasswordService
@@ -15,7 +16,7 @@ from service.mail.EmailBuilder import EmailBuilder
 from service.mail.EmailMessage import EmailMessage
 
 
-class UserCtl(BaseRestCtl):
+class UserRestCtl(BaseRestCtl):
     def get_model(self):
         return User
 
@@ -23,7 +24,7 @@ class UserCtl(BaseRestCtl):
         return UserSerializers
 
 
-class UserLoginCtl(BaseRestCtl):
+class UserLoginRestCtl(BaseRestCtl):
     """
     REST endpoint for user authentication.
 
@@ -78,7 +79,7 @@ class UserLoginCtl(BaseRestCtl):
         })
 
 
-class ChangePasswordCtl(BaseRestCtl):
+class ChangePasswordRestCtl(BaseRestCtl):
     """
     REST endpoint to change a user's password.
 
@@ -144,7 +145,7 @@ class ChangePasswordCtl(BaseRestCtl):
         return self.error_response(None, "Password changed successfully", status.HTTP_200_OK)
 
 
-class ForgotPasswordCtl(BaseRestCtl):
+class ForgotPasswordRestCtl(BaseRestCtl):
     """
     REST endpoint to trigger a forgot-password email.
 
@@ -189,7 +190,7 @@ class ForgotPasswordCtl(BaseRestCtl):
         return self.error_response(None, "Password reset email has been sent", status.HTTP_200_OK)
 
 
-class UserRegistrationCtl(BaseRestCtl):
+class UserRegistrationRestCtl(BaseRestCtl):
     """
     REST endpoint for new user self-registration.
 
@@ -269,3 +270,11 @@ class UserRegistrationCtl(BaseRestCtl):
         EmailService.send(msg)
 
         return self.success_response(UserSerializers(user).data, "Registration successful", status.HTTP_201_CREATED)
+
+
+class UserPreloadRestCtl(APIView):
+    def get(self, _request):
+        data = {
+            "roles": [{"id": r.get_key(), "value": r.get_value()} for r in Role.objects.order_by("name")],
+        }
+        return Response({"error": False, "message": "", "data": data})

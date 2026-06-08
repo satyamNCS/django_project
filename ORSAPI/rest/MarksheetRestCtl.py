@@ -1,9 +1,9 @@
-from ORSAPI.rest.BaseRestCtl import BaseRestCtl
+﻿from ORSAPI.rest.BaseRestCtl import BaseRestCtl
 from service.models import Marksheet
 from service.Serializers import MarksheetSerializers
 
 
-class MarksheetCtl(BaseRestCtl):
+class MarksheetRestCtl(BaseRestCtl):
     def get_model(self):
         return Marksheet
 

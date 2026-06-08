@@ -31,7 +31,7 @@ class RestFrontCtl:
 
     Authentication
     --------------
-    Checks request.session['api_user'] (set by UserLoginCtl on successful
+    Checks request.session['api_user'] (set by UserLoginRestCtl on successful
     login).  Requests without a valid session on a non-public URL receive
     a 401 JSON response.
 
