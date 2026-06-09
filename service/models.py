@@ -36,7 +36,7 @@ class User(DropdownItem):
     password = models.CharField(max_length=20)
     dob = models.DateField(null=True, blank=True)
     role_id = models.IntegerField()
-    role_Name = models.CharField(max_length=50)
+    role_Name = models.CharField(max_length=50, blank=True)
     mobileNumber = models.CharField(max_length=15)
     gender = models.CharField(max_length=10, default="Male")
     photo = models.CharField(max_length=200, blank=True, default="")
@@ -92,15 +92,15 @@ class Faculty(DropdownItem):
     lastName = models.CharField(max_length=50)
     email = models.EmailField()
     mobileNumber = models.CharField(max_length=20)
-    address = models.CharField(max_length=50)
+    address = models.CharField(max_length=50, blank=True)
     gender = models.CharField(max_length=50)
     dob = models.DateField(null=True, blank=True)
-    college_ID = models.IntegerField()
-    collegeName = models.CharField(max_length=50)
-    subject_ID = models.IntegerField()
-    subjectName = models.CharField(max_length=50)
-    course_ID = models.IntegerField()
-    courseName = models.CharField(max_length=50)
+    college_ID = models.IntegerField(blank=True, default=0)
+    collegeName = models.CharField(max_length=50, blank=True)
+    subject_ID = models.IntegerField(blank=True, default=0)
+    subjectName = models.CharField(max_length=50, blank=True)
+    course_ID = models.IntegerField(blank=True, default=0)
+    courseName = models.CharField(max_length=50, blank=True)
 
     def get_value(self):
         return f"{self.firstName} {self.lastName}"
@@ -140,7 +140,7 @@ class Student(DropdownItem):
     mobileNumber = models.CharField(max_length=20)
     email = models.EmailField()
     college_ID = models.IntegerField()
-    collegeName = models.CharField(max_length=50)
+    collegeName = models.CharField(max_length=50, blank=True)
 
     def get_value(self):
         return f"{self.firstName} {self.lastName}"
@@ -154,7 +154,7 @@ class Subject(DropdownItem):
     subjectDescription = models.CharField(max_length=200)
     dob = models.DateField(null=True, blank=True)
     course_ID = models.IntegerField(default=0)
-    courseName = models.CharField(max_length=50, default="")
+    courseName = models.CharField(max_length=50, blank=True)
 
     def get_value(self):
         return self.subjectName
@@ -180,9 +180,9 @@ class TimeTable(DropdownItem):
     exam_date = models.DateField(null=True, blank=True)
     exam_time = models.CharField(max_length=50)
     subject_id = models.IntegerField(default=0)
-    subject_name = models.CharField(max_length=50, default="")
+    subject_name = models.CharField(max_length=50, blank=True)
     course_id = models.IntegerField(default=0)
-    course_name = models.CharField(max_length=50, default="")
+    course_name = models.CharField(max_length=50, blank=True)
     semester = models.CharField(max_length=50)
 
     def get_value(self):
