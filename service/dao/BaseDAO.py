@@ -5,6 +5,7 @@ from django.core.paginator import Paginator
 
 logger = logging.getLogger(__name__)
 
+
 class DuplicateValueError(Exception):
     pass
 
@@ -41,6 +42,7 @@ class BaseDAO(ABC):
         if is_new:
             obj.id = None
         self._check_unique_keys(obj)
+        obj = self.populate(obj)
         obj.save()
         logger.info(
             "%s.save() %s pk=%s",
@@ -95,4 +97,8 @@ class BaseDAO(ABC):
 
     @abstractmethod
     def get_Unique(self):
+        return None
+
+    @abstractmethod
+    def populate(self, obj):
         return None

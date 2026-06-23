@@ -21,8 +21,9 @@ from .rest.StudentRestCtl import StudentPreloadRestCtl, StudentRestCtl
 from .rest.CourseRestCtl import CourseRestCtl
 from .rest.FacultyRestCtl import FacultyRestCtl, FacultyPreloadRestCtl
 from .rest.RoleRestCtl import RoleRestCtl
-from .rest.MarksheetRestCtl import MarksheetRestCtl
+from .rest.MarksheetRestCtl import MarksheetRestCtl, MarksheetPreloadRestCtl
 from .rest.SubjectRestCtl import SubjectRestCtl, SubjectPreloadRestCtl
+from .rest.TimeTableRestCtl import TimeTableRestCtl, TimeTablePreloadRestCtl
 from .rest.UserRestCtl import (
     UserRestCtl,
     UserLoginRestCtl,
@@ -54,11 +55,16 @@ urlpatterns = [
     path("api/Role/<int:id>/", RoleRestCtl.as_view()),
     path("api/Marksheet/", MarksheetRestCtl.as_view()),
     path("api/Marksheet/search/", MarksheetRestCtl.search_view(), name="marksheet-search"),
+    path("api/Marksheet/preload/", MarksheetPreloadRestCtl.as_view()),
     path("api/Marksheet/<int:id>/", MarksheetRestCtl.as_view()),
     path("api/Subject/", SubjectRestCtl.as_view()),
     path("api/Subject/search/", SubjectRestCtl.search_view(), name="subject-search"),
     path("api/Subject/<int:id>/", SubjectRestCtl.as_view()),
     path("api/Subject/preload/", SubjectPreloadRestCtl.as_view()),
+    path("api/TimeTable/", TimeTableRestCtl.as_view()),
+    path("api/TimeTable/search/", TimeTableRestCtl.search_view(), name="timetable-search"),
+    path("api/TimeTable/preload/", TimeTablePreloadRestCtl.as_view()),
+    path("api/TimeTable/<int:id>/", TimeTableRestCtl.as_view()),
     path("api/User/", UserRestCtl.as_view()),
     path("api/User/search/", UserRestCtl.search_view(), name="user-search"),
     path("api/User/<int:id>/", UserRestCtl.as_view()),

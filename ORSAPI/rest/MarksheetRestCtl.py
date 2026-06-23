@@ -1,9 +1,12 @@
-﻿from ORSAPI.rest.BaseRestCtl import BaseRestCtl
-from service.models import Marksheet
+﻿from rest_framework.views import APIView
+from rest_framework.response import Response
+from ORSAPI.rest.BaseRestCtl import BaseRestCtl
+from service.models import Course, Marksheet, Student
 from service.Serializers import MarksheetSerializers
+from service.service import CourseService
 from service.service.MarksheetService import MarksheetService
 from service.utility.DataValidator import DataValidator
-
+from service.service.SubjectService import SubjectService
 
 class MarksheetRestCtl(BaseRestCtl):
     def get_model(self):
@@ -31,12 +34,11 @@ class MarksheetRestCtl(BaseRestCtl):
         elif not DataValidator.isMaxLength(roll_number, 50):
             errors["rollNumber"] = "Roll Number cannot exceed 50 characters"
 
-        if DataValidator.isNull(name):
-            errors["name"] = "Name cannot be null"
-        elif not DataValidator.isMaxLength(name, 50):
-            errors["name"] = "Name cannot exceed 50 characters"
-
-        for field, value in (("physics", physics), ("chemistry", chemistry), ("maths", maths)):
+        for field, value in (
+            ("physics", physics),
+            ("chemistry", chemistry),
+            ("maths", maths),
+        ):
             if DataValidator.isNull(value):
                 errors[field] = f"{field.capitalize()} marks cannot be null"
             elif not DataValidator.isRange(value, 0, 100):
@@ -57,11 +59,15 @@ class MarksheetRestCtl(BaseRestCtl):
         return errors
 
     def get(self, request, id=None):
+        from rest_framework import status
+
         if id:
             try:
                 obj = Marksheet.objects.get(id=id)
             except Marksheet.DoesNotExist:
-                return self.error_response(None, "Marksheet not found", status.HTTP_404_NOT_FOUND)
+                return self.error_response(
+                    None, "Marksheet not found", status.HTTP_404_NOT_FOUND
+                )
             data = dict(MarksheetSerializers(obj).data)
             data["total"] = obj.total
             data["percentage"] = obj.percentage
@@ -73,4 +79,24 @@ class MarksheetRestCtl(BaseRestCtl):
                 entry["total"] = obj.total
                 entry["percentage"] = obj.percentage
                 data.append(entry)
-        return self.success_response(True, data,status=200)
+        return self.success_response(data)
+
+
+class MarksheetPreloadRestCtl(APIView):
+    def get(self, _request):
+        students = [
+            {"id": s.get_key(), "value": s.get_value()}
+            for s in Student.objects.order_by("firstName")
+        ]
+        subjects = [
+            {"id": s.get_key(), "value": s.get_value()}
+            for s in SubjectService().search({})
+        ]
+
+        return Response(
+            {
+                "error": False,
+                "message": "",
+                "data": {"students": students, "subjects": subjects},
+            }
+        )

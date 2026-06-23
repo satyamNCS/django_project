@@ -8,4 +8,7 @@ class RoleDAO(BaseDAO):
         return Role
 
     def get_Unique(self):
-        return ["name"]   
+        return ["name"]
+
+    def populate(self, obj):
+        return obj

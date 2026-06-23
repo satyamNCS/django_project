@@ -9,3 +9,6 @@ class CourseDAO(BaseDAO):
 
     def get_Unique(self):
         return ["name"]
+
+    def populate(self, obj):
+        return obj
