@@ -150,22 +150,14 @@ class Student(DropdownItem):
 
 
 class Subject(DropdownItem):
-    subjectName = models.CharField(max_length=50)
-    subjectDescription = models.CharField(max_length=200)
+    name = models.CharField(max_length=50)
+    description = models.CharField(max_length=200)
     dob = models.DateField(null=True, blank=True)
     course_ID = models.IntegerField(default=0)
     courseName = models.CharField(max_length=50, blank=True)
 
     def get_value(self):
-        return self.subjectName
-
-    @property
-    def name(self):
-        return self.subjectName
-
-    @property
-    def description(self):
-        return self.subjectDescription
+        return self.name
 
     @property
     def course_name(self):
@@ -173,7 +165,7 @@ class Subject(DropdownItem):
 
     class Meta:
         db_table = "SOS_SUBJECT"
-        unique_together = ("subjectName", "course_ID")
+        unique_together = ("name", "course_ID")
 
 
 class TimeTable(DropdownItem):

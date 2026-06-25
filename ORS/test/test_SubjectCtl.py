@@ -37,8 +37,8 @@ class TestSubjectCtlModelToForm(TestCase):
         """All Subject attributes must be mapped to the correct form keys."""
         subject = MagicMock()
         subject.id = 5
-        subject.subjectName = "Chemistry"
-        subject.subjectDescription = "Study of chemicals"
+        subject.name = "Chemistry"
+        subject.description = "Study of chemicals"
         subject.course_ID = 2
         self.ctl.model_to_form(subject)
         self.assertEqual(self.ctl.form["id"], 5)
@@ -74,8 +74,8 @@ class TestSubjectCtlFormToModel(TestCase):
         subject = MagicMock()
         result = self.ctl.form_to_model(subject)
         self.assertEqual(subject.id, 4)
-        self.assertEqual(subject.subjectName, "Maths")
-        self.assertEqual(subject.subjectDescription, "Numbers")
+        self.assertEqual(subject.name, "Maths")
+        self.assertEqual(subject.description, "Numbers")
         self.assertIs(result, subject)
 
     @patch("ORS.ctl.SubjectCtl.CourseService")
@@ -211,8 +211,8 @@ class TestSubjectCtlDisplay(TestCase):
         mock_html.get_list_from_beans.return_value = ""
         subject = MagicMock()
         subject.id = 2
-        subject.subjectName = "Physics"
-        subject.subjectDescription = "Waves and energy"
+        subject.name = "Physics"
+        subject.description = "Waves and energy"
         subject.course_ID = 1
         mock_service = MagicMock()
         mock_service.get.return_value = subject

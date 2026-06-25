@@ -28,16 +28,16 @@ class SubjectCtl(BaseCtl):
         if obj is None:
             return
         self.form["id"] = obj.id
-        self.form["name"] = obj.subjectName
-        self.form["description"] = obj.subjectDescription
+        self.form["name"] = obj.name
+        self.form["description"] = obj.description
         self.form["course_id"] = int(obj.course_ID) if obj.course_ID else 0
 
     def form_to_model(self, obj):
         pk = int(self.form.get("id", 0))
         if pk > 0:
             obj.id = pk
-        obj.subjectName = self.form.get("name", "")
-        obj.subjectDescription = self.form.get("description", "")
+        obj.name = self.form.get("name", "")
+        obj.description = self.form.get("description", "")
 
         course_id = int(self.form.get("course_id") or 0)
         obj.course_ID = course_id
@@ -73,7 +73,7 @@ class SubjectCtl(BaseCtl):
     def submit(self, request, params={}):
         pk = int(self.form.get("id", 0) or 0)
         duplicate = self.get_service().get_model().objects.filter(
-            subjectName=self.form.get("name", ""),
+            name=self.form.get("name", ""),
             course_ID=int(self.form.get("course_id") or 0),
         )
         if pk > 0:

@@ -67,7 +67,7 @@ class FacultyPreloadRestCtl(APIView):
             ],
             "subjects": [
                 {"id": c.get_key(), "value": c.get_value()}
-                for c in Subject.objects.order_by("subjectName")
+                for c in Subject.objects.order_by("name")
             ],
         }
         return Response({"error": False, "message": "", "data": data})

@@ -9,7 +9,7 @@ class SubjectDAO(BaseDAO):
         return Subject
 
     def get_Unique(self):
-        return ["subjectName"]
+        return ["name"]
 
     def populate(self, obj):
         try:

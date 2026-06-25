@@ -20,19 +20,19 @@ class SubjectRestCtl(BaseRestCtl):
     def input_validation(self, data):
         errors = {}
 
-        subject_name = data.get("subjectName", "")
-        subject_desc = data.get("subjectDescription", "")
+        subject_name = data.get("name", "")
+        subject_desc = data.get("description", "")
         course_id = data.get("course_ID", "")
 
         if DataValidator.isNull(subject_name):
-            errors["subjectName"] = "Subject Name cannot be null"
+            errors["name"] = "Subject Name cannot be null"
         elif not DataValidator.isMaxLength(subject_name, 50):
-            errors["subjectName"] = "Subject Name cannot exceed 50 characters"
+            errors["name"] = "Subject Name cannot exceed 50 characters"
 
         if DataValidator.isNull(subject_desc):
-            errors["subjectDescription"] = "Subject Description cannot be null"
+            errors["description"] = "Subject Description cannot be null"
         elif not DataValidator.isMaxLength(subject_desc, 200):
-            errors["subjectDescription"] = "Subject Description cannot exceed 200 characters"
+            errors["description"] = "Subject Description cannot exceed 200 characters"
 
         if DataValidator.isNull(course_id):
             errors["course_ID"] = "Course cannot be null"

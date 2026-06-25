@@ -6,6 +6,7 @@ from service.models import Faculty
 from service.service.FacultyService import FacultyService
 from service.service.CollegeService import CollegeService
 from service.service.CourseService import CourseService
+from service.service.SubjectService import SubjectService
 from ORS.utility.HtmlUtility import HtmlUtility
 
 
@@ -14,6 +15,7 @@ class FacultyCtl(BaseCtl):
     def preload(self, request):
         college_list = CollegeService().search({})
         course_list = CourseService().search({})
+        subject_list = SubjectService().search({})
         gender_list = ["Male", "Female"]
 
         self.preload_data["college_list"] = college_list
@@ -29,6 +31,11 @@ class FacultyCtl(BaseCtl):
             "course_ID",
             int(self.form.get("course_ID") or 0),
             course_list,
+        )
+        self.preload_data["subject_select"] = HtmlUtility.get_list_from_beans(
+            "subject_ID",
+            int(self.form.get("subject_ID") or 0),
+            subject_list,
         )
         self.preload_data["gender_select"] = HtmlUtility.get_list_from_list(
             "gender", self.form.get("gender"), gender_list
@@ -46,7 +53,7 @@ class FacultyCtl(BaseCtl):
         self.form["dob"] = requestForm.get("dob", "")
         self.form["college_ID"] = requestForm.get("college_ID", 0)
         self.form["course_ID"] = requestForm.get("course_ID", 0)
-        self.form["subjectName"] = requestForm.get("subjectName", "")
+        self.form["subject_ID"] = requestForm.get("subject_ID", 0)
 
     def model_to_form(self, obj):
         if obj is None:
@@ -61,7 +68,7 @@ class FacultyCtl(BaseCtl):
         self.form["dob"] = obj.dob.strftime("%Y-%m-%d") if obj.dob else ""
         self.form["college_ID"] = int(obj.college_ID) if obj.college_ID else 0
         self.form["course_ID"] = int(obj.course_ID) if obj.course_ID else 0
-        self.form["subjectName"] = obj.subjectName
+        self.form["subject_ID"] = int(obj.subject_ID) if obj.subject_ID else 0
 
     def form_to_model(self, obj):
         pk = int(self.form.get("id", 0))
@@ -88,8 +95,7 @@ class FacultyCtl(BaseCtl):
         course = CourseService().get(course_id) if course_id > 0 else None
         obj.courseName = course.name if course else ""
 
-        obj.subjectName = self.form.get("subjectName", "")
-        obj.subject_ID = 0
+        obj.subject_ID = int(self.form.get("subject_ID") or 0)
         return obj
 
     def input_validation(self):

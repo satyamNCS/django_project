@@ -18,7 +18,7 @@ class TimeTableDAO(BaseDAO):
             obj.course_name = ""
         try:
             subject = Subject.objects.get(id=obj.subject_id)
-            obj.subject_name = subject.subjectName
+            obj.subject_name = subject.name
         except Subject.DoesNotExist:
             obj.subject_name = ""
         return obj

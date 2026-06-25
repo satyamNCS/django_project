@@ -1,4 +1,6 @@
 from django.shortcuts import render
+
+from service.service.SubjectService import SubjectService
 from .BaseCtl import BaseCtl
 from service.service.FacultyService import FacultyService
 from service.service.CollegeService import CollegeService
@@ -11,6 +13,7 @@ class FacultyListCtl(BaseCtl):
     def preload(self, request):
         college_list = CollegeService().search({})
         course_list = CourseService().search({})
+        subject_list = SubjectService().search({})
         self.preload_data["college_select"] = HtmlUtility.get_list_from_beans(
             "college_ID",
             int(self.form.get("college_ID") or 0),
@@ -20,6 +23,11 @@ class FacultyListCtl(BaseCtl):
             "course_ID",
             int(self.form.get("course_ID") or 0),
             course_list,
+        )
+        self.preload_data["subject_select"] = HtmlUtility.get_list_from_beans(
+            "subject_ID",
+            int(self.form.get("subject_ID") or 0),
+            subject_list,
         )
         return self.preload_data
 

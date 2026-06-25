@@ -23,7 +23,7 @@ class FacultyDAO(BaseDAO):
             obj.courseName = ""
         try:
             subject = Subject.objects.get(id=obj.subject_ID)
-            obj.subjectName = subject.subjectName
+            obj.subjectName = subject.name
         except Subject.DoesNotExist:
             obj.subjectName = ""
         return obj
