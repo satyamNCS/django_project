@@ -2,6 +2,7 @@ import logging
 from abc import ABC, abstractmethod
 from django.http import HttpResponse
 from django.shortcuts import render
+from service.dao.BaseDAO import DuplicateValueError
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,16 @@ class BaseCtl(ABC):
                     {"form": self.form, "preload_data": self.preload(request)},
                 )
             else:
+                try:
                 return self.submit(request, params)
+                except DuplicateValueError as e:
+                    self.form["error"] = True
+                    self.form["message"] = str(e)
+                    return render(
+                        request,
+                        self.get_template(),
+                        {"form": self.form, "preload_data": self.preload(request)},
+                    )
         else:
             logger.error("%s unsupported request method=%s", self.__class__.__name__, request.method)
             message = "Request is not supported"
