@@ -1,6 +1,6 @@
 import logging
 from abc import ABC, abstractmethod
-
+from service.utility.DataValidator import DataValidator
 from django.core.paginator import Paginator
 
 logger = logging.getLogger(__name__)
@@ -63,6 +63,23 @@ class BaseDAO(ABC):
     def apply_filters(self, q, params):
         # apply all key-value pairs in params as filters to the QuerySet q
         for key, value in params.items():
+            if key in (
+                "has_next",
+                "has_previous",
+                "start_index",
+                "end_index",
+                "error",
+                "message",
+                "inputError",
+                "page_number",
+                "page_size",
+            ):
+                continue
+
+           
+            if DataValidator.isNotNull(value):
+                if key == "id" and value == 0:
+                    continue
             q = q.filter(**{key: value})
         return q
 
