@@ -74,5 +74,5 @@ urlpatterns = [
     path("api/User/change-password/", ChangePasswordRestCtl.as_view()),
     path("api/User/forgot-password/", ForgotPasswordRestCtl.as_view()),
     path("api/User/register/", UserRegistrationRestCtl.as_view()),
-    path("api/User/upload-photo/", UploadUserPhotoRestCtl.as_view()),
+    path("api/User/upload-photo/<int:id>/", UploadUserPhotoRestCtl.as_view()),
 ]

@@ -113,26 +113,32 @@ class UserLoginRestCtl(BaseRestCtl):
         print("Login attempt for:", loginId, password)  # Debug log
 
         if not loginId or not password:
-            return self.error_response(None, "Login and password are required", status.HTTP_400_BAD_REQUEST)
+            return self.error_response(
+                None, "Login and password are required", status.HTTP_400_BAD_REQUEST
+            )
 
         user = UserService().authenticate({"loginId": loginId, "password": password})
         if user is None:
-            return self.error_response(None, "Invalid login or password", status.HTTP_401_UNAUTHORIZED)
+            return self.error_response(
+                None, "Invalid login or password", status.HTTP_401_UNAUTHORIZED
+            )
 
         refresh = RefreshToken()
         refresh["user_id"] = user.id
         refresh["login"] = user.login
         refresh["role_id"] = user.role_id
 
-        return Response({
-            "error": False,
-            "message": "Login successful",
-            "data": {
-                "user": UserSerializers(user).data,
-                "access": str(refresh.access_token),
-                "refresh": str(refresh),
-            },
-        })
+        return Response(
+            {
+                "error": False,
+                "message": "Login successful",
+                "data": {
+                    "user": UserSerializers(user).data,
+                    "access": str(refresh.access_token),
+                    "refresh": str(refresh),
+                },
+            }
+        )
 
 
 class ChangePasswordRestCtl(BaseRestCtl):
@@ -182,15 +188,23 @@ class ChangePasswordRestCtl(BaseRestCtl):
         elif new_password and new_password != confirm_password:
             errors["confirmPassword"] = "New Password and Confirm Password do not match"
         if errors:
-            return self.error_response(errors, "Validation failed", status.HTTP_400_BAD_REQUEST)
+            return self.error_response(
+                errors, "Validation failed", status.HTTP_400_BAD_REQUEST
+            )
 
         try:
             user = User.objects.get(login=login)
         except User.DoesNotExist:
-            return self.error_response(None, "User not found", status.HTTP_404_NOT_FOUND)
+            return self.error_response(
+                None, "User not found", status.HTTP_404_NOT_FOUND
+            )
 
         if user.password != old_password:
-            return self.error_response({"oldPassword": "Old Password is incorrect"}, "Validation failed", status.HTTP_400_BAD_REQUEST)
+            return self.error_response(
+                {"oldPassword": "Old Password is incorrect"},
+                "Validation failed",
+                status.HTTP_400_BAD_REQUEST,
+            )
 
         user.password = new_password
         UserService().save(user)
@@ -198,10 +212,14 @@ class ChangePasswordRestCtl(BaseRestCtl):
         msg = EmailMessage()
         msg.to = [user.login]
         msg.subject = "Password Changed Successfully"
-        msg.text = EmailBuilder.change_password({"firstName": user.firstName, "login": user.login, "password": new_password})
+        msg.text = EmailBuilder.change_password(
+            {"firstName": user.firstName, "login": user.login, "password": new_password}
+        )
         EmailService.send(msg)
 
-        return self.error_response(None, "Password changed successfully", status.HTTP_200_OK)
+        return self.error_response(
+            None, "Password changed successfully", status.HTTP_200_OK
+        )
 
 
 class ForgotPasswordRestCtl(BaseRestCtl):
@@ -236,20 +254,32 @@ class ForgotPasswordRestCtl(BaseRestCtl):
         loginId = request.data.get("login", "")
 
         if not loginId:
-            return self.error_response(None, "Login cannot be null", status.HTTP_400_BAD_REQUEST)
+            return self.error_response(
+                None, "Login cannot be null", status.HTTP_400_BAD_REQUEST
+            )
 
         user_qs = ForgetPasswordService().search({"login": loginId})
         if user_qs.count() == 0:
-            return self.error_response(None, "No account found with this email", status.HTTP_404_NOT_FOUND)
+            return self.error_response(
+                None, "No account found with this email", status.HTTP_404_NOT_FOUND
+            )
 
         user = user_qs[0]
         msg = EmailMessage()
         msg.to = [user.login]
         msg.subject = "Forgot Password Request"
-        msg.text = EmailBuilder.forgot_password({"firstName": user.firstName, "login": user.login, "password": user.password})
+        msg.text = EmailBuilder.forgot_password(
+            {
+                "firstName": user.firstName,
+                "login": user.login,
+                "password": user.password,
+            }
+        )
         EmailService.send(msg)
 
-        return self.error_response(None, "Password reset email has been sent", status.HTTP_200_OK)
+        return self.error_response(
+            None, "Password reset email has been sent", status.HTTP_200_OK
+        )
 
 
 class UserRegistrationRestCtl(BaseRestCtl):
@@ -314,7 +344,9 @@ class UserRegistrationRestCtl(BaseRestCtl):
         elif not mobile.isdigit() or len(mobile) != 10:
             errors["mobileNumber"] = "Mobile Number must be 10 digits"
         if errors:
-            return self.error_response(errors, "Validation failed", status.HTTP_400_BAD_REQUEST)
+            return self.error_response(
+                errors, "Validation failed", status.HTTP_400_BAD_REQUEST
+            )
 
         user = User()
         user.firstName = first_name
@@ -331,16 +363,25 @@ class UserRegistrationRestCtl(BaseRestCtl):
         msg = EmailMessage()
         msg.to = [loginId]
         msg.subject = "Welcome - Registration Successful"
-        msg.text = EmailBuilder.sign_up({"firstName": first_name, "login": loginId, "password": password})
+        msg.text = EmailBuilder.sign_up(
+            {"firstName": first_name, "login": loginId, "password": password}
+        )
         EmailService.send(msg)
 
-        return self.success_response(UserSerializers(user).data, "Registration successful", status.HTTP_201_CREATED)
+        return self.success_response(
+            UserSerializers(user).data,
+            "Registration successful",
+            status.HTTP_201_CREATED,
+        )
 
 
 class UserPreloadRestCtl(APIView):
     def get(self, _request):
         data = {
-            "roles": [{"id": r.get_key(), "value": r.get_value()} for r in Role.objects.order_by("name")],
+            "roles": [
+                {"id": r.get_key(), "value": r.get_value()}
+                for r in Role.objects.order_by("name")
+            ],
         }
         return Response({"error": False, "message": "", "data": data})
 
@@ -370,8 +411,14 @@ class UploadUserPhotoRestCtl(BaseRestCtl):
     def get_serializer_class(self):
         return UserSerializers
 
-    def post(self, request):
-        user_id = request.data.get("user_id", "")
+    def post(self, request, id=None):
+
+        if not id:
+            return self.error_response(
+                None, "User ID is required", status.HTTP_400_BAD_REQUEST
+            )
+
+        user_id = id
         photo_file = request.FILES.get("photo")
 
         errors = {}
@@ -380,12 +427,16 @@ class UploadUserPhotoRestCtl(BaseRestCtl):
         if not photo_file:
             errors["photo"] = "Photo file cannot be null"
         if errors:
-            return self.error_response(errors, "Validation failed", status.HTTP_400_BAD_REQUEST)
+            return self.error_response(
+                errors, "Validation failed", status.HTTP_400_BAD_REQUEST
+            )
 
         try:
             user = User.objects.get(id=int(user_id))
         except (User.DoesNotExist, ValueError):
-            return self.error_response(None, "User not found", status.HTTP_404_NOT_FOUND)
+            return self.error_response(
+                None, "User not found", status.HTTP_404_NOT_FOUND
+            )
 
         ext = os.path.splitext(photo_file.name)[1].lower()
         filename = f"user_{uuid.uuid4().hex}{ext}"
@@ -399,4 +450,6 @@ class UploadUserPhotoRestCtl(BaseRestCtl):
         user.photo = f"{settings.USER_PHOTO_DIR}/{filename}"
         UserService().save(user)
 
-        return self.success_response(UserSerializers(user).data, "Photo uploaded successfully")
+        return self.success_response(
+            UserSerializers(user).data, "Photo uploaded successfully"
+        )

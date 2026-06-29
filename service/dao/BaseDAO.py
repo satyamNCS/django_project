@@ -2,6 +2,7 @@ import logging
 from abc import ABC, abstractmethod
 from service.utility.DataValidator import DataValidator
 from django.core.paginator import Paginator
+from django.db import models as db_models
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +81,13 @@ class BaseDAO(ABC):
             if DataValidator.isNotNull(value):
                 if key == "id" and value == 0:
                     continue
+                try:
+                    field = self.get_model()._meta.get_field(key)
+                    if isinstance(field, (db_models.CharField, db_models.TextField)):
+                        q = q.filter(**{f"{key}__iexact": value})
+                    else:
+                        q = q.filter(**{key: value})
+                except Exception:
             q = q.filter(**{key: value})
         return q
 
