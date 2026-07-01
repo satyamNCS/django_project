@@ -18,12 +18,12 @@ jobs:
     env:
       APP_NAME: SOSDjango
       APP_PORT: 8000
-      HEALTH_URL: http://localhost:8000/
+      HEALTH_URL: http://127.0.0.1:8000/
       FRONTEND_REPO: satyamNCS/django_project_ui
       FRONTEND_PORT: 4200
       FRONTEND_SERVE_DIR: frontend/dist/ors/browser
       FRONTEND_DEPLOY_DIR: deploy/frontend
-      FRONTEND_HEALTH_URL: http://localhost:4200
+      FRONTEND_HEALTH_URL: http://127.0.0.1:4200
 
     steps:
       - name: Checkout code
@@ -96,22 +96,28 @@ jobs:
 
       - name: Restart Django Backend
         run: |
+          $workDir = $env:GITHUB_WORKSPACE
+
           Write-Host "Stopping existing backend (if running)..."
           Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
             Where-Object { $_.CommandLine -like '*manage.py runserver*' } |
             ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
           Start-Sleep -Seconds 3
 
-          Write-Host "Starting Django application..."
-          $backend = Start-Process python -ArgumentList "manage.py","runserver","0.0.0.0:$($env:APP_PORT)" `
-            -PassThru -NoNewWindow `
-            -RedirectStandardOutput "app.log" `
-            -RedirectStandardError "app.err"
-          $backend.Id | Out-File -FilePath "app.pid" -Encoding ascii
+          Write-Host "Starting Django application in $workDir ..."
+          $backend = Start-Process python `
+            -ArgumentList @("manage.py", "runserver", "127.0.0.1:$($env:APP_PORT)", "--noreload") `
+            -WorkingDirectory $workDir `
+            -WindowStyle Hidden `
+            -PassThru
+          $backend.Id | Out-File -FilePath (Join-Path $workDir "app.pid") -Encoding ascii
           Write-Host "Application started with PID $($backend.Id)"
+          Start-Sleep -Seconds 8
 
       - name: Restart Frontend
         run: |
+          $workDir = $env:GITHUB_WORKSPACE
+
           Write-Host "Stopping existing frontend (if running)..."
           Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
             Where-Object { $_.CommandLine -like '*serve*' -and $_.CommandLine -like "*$($env:FRONTEND_PORT)*" } |
@@ -119,21 +125,25 @@ jobs:
           Start-Sleep -Seconds 3
 
           Write-Host "Starting Angular frontend..."
-          $frontend = Start-Process npx.cmd -ArgumentList "--yes","serve","$($env:FRONTEND_DEPLOY_DIR)","-l","$($env:FRONTEND_PORT)" `
-            -PassThru -NoNewWindow `
-            -RedirectStandardOutput "frontend.log" `
-            -RedirectStandardError "frontend.err"
-          $frontend.Id | Out-File -FilePath "frontend.pid" -Encoding ascii
+          $frontend = Start-Process npx.cmd `
+            -ArgumentList @("--yes", "serve", $env:FRONTEND_DEPLOY_DIR, "-l", $env:FRONTEND_PORT) `
+            -WorkingDirectory $workDir `
+            -WindowStyle Hidden `
+            -PassThru
+          $frontend.Id | Out-File -FilePath (Join-Path $workDir "frontend.pid") -Encoding ascii
           Write-Host "Frontend started with PID $($frontend.Id)"
+          Start-Sleep -Seconds 8
 
       - name: Health Check
         run: |
+          $workDir = $env:GITHUB_WORKSPACE
+
           Write-Host "Waiting for backend to start..."
           $backendOk = $false
           for ($i = 1; $i -le 30; $i++) {
             try {
               $response = Invoke-WebRequest -Uri $env:HEALTH_URL -UseBasicParsing -TimeoutSec 5
-              if ($response.StatusCode -eq 200) {
+              if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 400) {
                 Write-Host "Backend health check passed."
                 $backendOk = $true
                 break
@@ -144,8 +154,8 @@ jobs:
           }
           if (-not $backendOk) {
             Write-Host "Backend health check failed."
-            Get-Content app.log -Tail 50 -ErrorAction SilentlyContinue
-            Get-Content app.err -Tail 50 -ErrorAction SilentlyContinue
+            Get-Content (Join-Path $workDir "app.log") -Tail 50 -ErrorAction SilentlyContinue
+            Get-Content (Join-Path $workDir "app.err") -Tail 50 -ErrorAction SilentlyContinue
             exit 1
           }
 
@@ -153,7 +163,7 @@ jobs:
           for ($i = 1; $i -le 30; $i++) {
             try {
               $response = Invoke-WebRequest -Uri $env:FRONTEND_HEALTH_URL -UseBasicParsing -TimeoutSec 5
-              if ($response.StatusCode -eq 200) {
+              if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 400) {
                 Write-Host "Frontend health check passed."
                 exit 0
               }
@@ -162,8 +172,8 @@ jobs:
             Start-Sleep -Seconds 5
           }
           Write-Host "Frontend health check failed."
-          Get-Content frontend.log -Tail 50 -ErrorAction SilentlyContinue
-          Get-Content frontend.err -Tail 50 -ErrorAction SilentlyContinue
+          Get-Content (Join-Path $workDir "frontend.log") -Tail 50 -ErrorAction SilentlyContinue
+          Get-Content (Join-Path $workDir "frontend.err") -Tail 50 -ErrorAction SilentlyContinue
           exit 1
 
       - name: Send Deployment Notification
