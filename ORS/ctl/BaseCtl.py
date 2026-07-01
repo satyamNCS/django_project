@@ -50,7 +50,7 @@ class BaseCtl(ABC):
                 )
             else:
                 try:
-                return self.submit(request, params)
+                    return self.submit(request, params)
                 except DuplicateValueError as e:
                     self.form["error"] = True
                     self.form["message"] = str(e)
