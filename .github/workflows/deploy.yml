@@ -61,8 +61,22 @@ jobs:
       - name: Prepare Django backend
         run: python manage.py migrate --noinput
 
+      - name: Create CI test settings (SQLite only)
+        run: |
+          @'
+          import os
+          from SOS_django_projects.settings import *
+
+          DATABASES = {
+              "default": {
+                  "ENGINE": "django.db.backends.sqlite3",
+                  "NAME": os.path.join(BASE_DIR, "test_db.sqlite3"),
+              }
+          }
+          '@ | Out-File -FilePath ci_settings.py -Encoding utf8
+
       - name: Run Unit Tests
-        run: python manage.py test
+        run: python manage.py test --settings=ci_settings
 
       - name: Build Angular
         working-directory: frontend
