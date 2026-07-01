@@ -11,6 +11,10 @@ jobs:
     name: Build and Deploy
     runs-on: self-hosted
 
+    defaults:
+      run:
+        shell: powershell -NoProfile -ExecutionPolicy Bypass -File {0}
+
     env:
       APP_NAME: SOSDjango
       APP_PORT: 8000
@@ -62,71 +66,93 @@ jobs:
 
       - name: Copy Angular build
         run: |
-          rm -rf "${FRONTEND_DEPLOY_DIR}"
-          mkdir -p "${FRONTEND_DEPLOY_DIR}"
-          cp -r "${FRONTEND_SERVE_DIR}/." "${FRONTEND_DEPLOY_DIR}/"
-          echo "Angular build copied to ${FRONTEND_DEPLOY_DIR}"
+          if (Test-Path $env:FRONTEND_DEPLOY_DIR) {
+            Remove-Item -Recurse -Force $env:FRONTEND_DEPLOY_DIR
+          }
+          New-Item -ItemType Directory -Path $env:FRONTEND_DEPLOY_DIR -Force | Out-Null
+          Copy-Item -Path "$env:FRONTEND_SERVE_DIR\*" -Destination $env:FRONTEND_DEPLOY_DIR -Recurse -Force
+          Write-Host "Angular build copied to $env:FRONTEND_DEPLOY_DIR"
 
       - name: Restart Django Backend
         run: |
-          echo "Stopping existing backend (if running)..."
-          pkill -f "manage.py runserver" || true
-          sleep 3
+          Write-Host "Stopping existing backend (if running)..."
+          Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+            Where-Object { $_.CommandLine -like '*manage.py runserver*' } |
+            ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+          Start-Sleep -Seconds 3
 
-          echo "Starting Django application..."
-          nohup python manage.py runserver 0.0.0.0:${APP_PORT} > app.log 2>&1 &
-          echo $! > app.pid
-          echo "Application started with PID $(cat app.pid)"
+          Write-Host "Starting Django application..."
+          $backend = Start-Process python -ArgumentList "manage.py","runserver","0.0.0.0:$($env:APP_PORT)" `
+            -PassThru -NoNewWindow `
+            -RedirectStandardOutput "app.log" `
+            -RedirectStandardError "app.err"
+          $backend.Id | Out-File -FilePath "app.pid" -Encoding ascii
+          Write-Host "Application started with PID $($backend.Id)"
 
       - name: Restart Frontend
         run: |
-          echo "Stopping existing frontend (if running)..."
-          pkill -f "${FRONTEND_DEPLOY_DIR}" || pkill -f "serve.*${FRONTEND_PORT}" || true
-          sleep 3
+          Write-Host "Stopping existing frontend (if running)..."
+          Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+            Where-Object { $_.CommandLine -like '*serve*' -and $_.CommandLine -like "*$($env:FRONTEND_PORT)*" } |
+            ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+          Start-Sleep -Seconds 3
 
-          echo "Starting Angular frontend..."
-          nohup npx --yes serve "${FRONTEND_DEPLOY_DIR}" -l "${FRONTEND_PORT}" > frontend.log 2>&1 &
-          echo $! > frontend.pid
-          echo "Frontend started with PID $(cat frontend.pid)"
+          Write-Host "Starting Angular frontend..."
+          $frontend = Start-Process npx -ArgumentList "--yes","serve","$($env:FRONTEND_DEPLOY_DIR)","-l","$($env:FRONTEND_PORT)" `
+            -PassThru -NoNewWindow `
+            -RedirectStandardOutput "frontend.log" `
+            -RedirectStandardError "frontend.err"
+          $frontend.Id | Out-File -FilePath "frontend.pid" -Encoding ascii
+          Write-Host "Frontend started with PID $($frontend.Id)"
 
       - name: Health Check
         run: |
-          echo "Waiting for backend to start..."
-          for i in {1..30}; do
-            if curl -sf "${HEALTH_URL}"; then
-              echo "Backend health check passed."
-              break
-            fi
-            echo "Backend attempt ${i}/30 - not ready yet..."
-            sleep 5
-            if [ "${i}" -eq 30 ]; then
-              echo "Backend health check failed."
-              tail -50 app.log || true
-              exit 1
-            fi
-          done
+          Write-Host "Waiting for backend to start..."
+          $backendOk = $false
+          for ($i = 1; $i -le 30; $i++) {
+            try {
+              $response = Invoke-WebRequest -Uri $env:HEALTH_URL -UseBasicParsing -TimeoutSec 5
+              if ($response.StatusCode -eq 200) {
+                Write-Host "Backend health check passed."
+                $backendOk = $true
+                break
+              }
+            } catch {}
+            Write-Host "Backend attempt $i/30 - not ready yet..."
+            Start-Sleep -Seconds 5
+          }
+          if (-not $backendOk) {
+            Write-Host "Backend health check failed."
+            Get-Content app.log -Tail 50 -ErrorAction SilentlyContinue
+            Get-Content app.err -Tail 50 -ErrorAction SilentlyContinue
+            exit 1
+          }
 
-          echo "Waiting for frontend to start..."
-          for i in {1..30}; do
-            if curl -sf "${FRONTEND_HEALTH_URL}"; then
-              echo "Frontend health check passed."
-              exit 0
-            fi
-            echo "Frontend attempt ${i}/30 - not ready yet..."
-            sleep 5
-          done
-          echo "Frontend health check failed."
-          tail -50 frontend.log || true
+          Write-Host "Waiting for frontend to start..."
+          for ($i = 1; $i -le 30; $i++) {
+            try {
+              $response = Invoke-WebRequest -Uri $env:FRONTEND_HEALTH_URL -UseBasicParsing -TimeoutSec 5
+              if ($response.StatusCode -eq 200) {
+                Write-Host "Frontend health check passed."
+                exit 0
+              }
+            } catch {}
+            Write-Host "Frontend attempt $i/30 - not ready yet..."
+            Start-Sleep -Seconds 5
+          }
+          Write-Host "Frontend health check failed."
+          Get-Content frontend.log -Tail 50 -ErrorAction SilentlyContinue
+          Get-Content frontend.err -Tail 50 -ErrorAction SilentlyContinue
           exit 1
 
       - name: Send Deployment Notification
         if: always()
         run: |
-          if [ "${{ job.status }}" = "success" ]; then
-            echo "::notice title=Deployment Successful::Backend on port ${APP_PORT}, frontend on port ${FRONTEND_PORT}"
-          else
-            echo "::error title=Deployment Failed::Deployment failed. Check workflow logs."
-          fi
+          if ("${{ job.status }}" -eq "success") {
+            Write-Host "::notice title=Deployment Successful::Backend on port $env:APP_PORT, frontend on port $env:FRONTEND_PORT"
+          } else {
+            Write-Host "::error title=Deployment Failed::Deployment failed. Check workflow logs."
+          }
 
       - name: Verify mail secrets
         if: always()
@@ -135,11 +161,13 @@ jobs:
           MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
           NOTIFY_EMAIL: ${{ secrets.NOTIFY_EMAIL }}
         run: |
-          if [ -z "$MAIL_USERNAME" ] || [ -z "$MAIL_PASSWORD" ] || [ -z "$NOTIFY_EMAIL" ]; then
-            echo "::error::GitHub Secrets missing. Add MAIL_USERNAME, MAIL_PASSWORD, NOTIFY_EMAIL in repo Settings."
+          if ([string]::IsNullOrWhiteSpace($env:MAIL_USERNAME) -or
+              [string]::IsNullOrWhiteSpace($env:MAIL_PASSWORD) -or
+              [string]::IsNullOrWhiteSpace($env:NOTIFY_EMAIL)) {
+            Write-Host "::error::GitHub Secrets missing. Add MAIL_USERNAME, MAIL_PASSWORD, NOTIFY_EMAIL in repo Settings."
             exit 1
-          fi
-          echo "Mail secrets are configured."
+          }
+          Write-Host "Mail secrets are configured."
 
       - name: Send Email Notification
         if: always()
@@ -151,7 +179,7 @@ jobs:
           JOB_STATUS: ${{ job.status }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          python3 << 'PYEOF'
+          $script = @'
           import os, smtplib, ssl
           from email.message import EmailMessage
 
@@ -179,4 +207,6 @@ jobs:
               server.login(user, password)
               server.send_message(msg)
           print("Email sent successfully.")
-          PYEOF
+          '@
+          $script | Out-File -FilePath send_mail.py -Encoding utf8
+          python send_mail.py
