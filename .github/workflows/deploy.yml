@@ -35,17 +35,23 @@ jobs:
           repository: ${{ env.FRONTEND_REPO }}
           path: frontend
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
+      - name: Verify Python and Node.js
+        run: |
+          if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
+            Write-Host "::error::Python not found on PATH. Install Python 3.10+ on this self-hosted runner."
+            exit 1
+          }
+          if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+            Write-Host "::error::Node.js not found on PATH. Install Node.js 20+ on this self-hosted runner."
+            exit 1
+          }
+          if (-not (Get-Command npm.cmd -ErrorAction SilentlyContinue)) {
+            Write-Host "::error::npm.cmd not found on PATH. Install Node.js on this self-hosted runner."
+            exit 1
+          }
+          Write-Host "Python: $(python --version)"
+          Write-Host "Node: $(node --version)"
+          Write-Host "npm: $(npm.cmd --version)"
 
       - name: Install Python dependencies
         run: |
@@ -61,8 +67,8 @@ jobs:
       - name: Build Angular
         working-directory: frontend
         run: |
-          npm ci
-          npm run build
+          npm.cmd ci
+          npm.cmd run build
 
       - name: Copy Angular build
         run: |
@@ -98,7 +104,7 @@ jobs:
           Start-Sleep -Seconds 3
 
           Write-Host "Starting Angular frontend..."
-          $frontend = Start-Process npx -ArgumentList "--yes","serve","$($env:FRONTEND_DEPLOY_DIR)","-l","$($env:FRONTEND_PORT)" `
+          $frontend = Start-Process npx.cmd -ArgumentList "--yes","serve","$($env:FRONTEND_DEPLOY_DIR)","-l","$($env:FRONTEND_PORT)" `
             -PassThru -NoNewWindow `
             -RedirectStandardOutput "frontend.log" `
             -RedirectStandardError "frontend.err"
