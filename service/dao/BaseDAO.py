@@ -88,7 +88,7 @@ class BaseDAO(ABC):
                     else:
                         q = q.filter(**{key: value})
                 except Exception:
-            q = q.filter(**{key: value})
+                    q = q.filter(**{key: value})
         return q
 
     def search(self, params, page_number=0, page_size=10):
