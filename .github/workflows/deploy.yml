@@ -18,12 +18,12 @@ jobs:
     env:
       APP_NAME: SOSDjango
       APP_PORT: 8000
-      HEALTH_URL: http://127.0.0.1:8000/
+      HEALTH_URL: http://localhost:8000/
       FRONTEND_REPO: satyamNCS/django_project_ui
       FRONTEND_PORT: 4200
       FRONTEND_SERVE_DIR: frontend/dist/ors/browser
       FRONTEND_DEPLOY_DIR: deploy/frontend
-      FRONTEND_HEALTH_URL: http://127.0.0.1:4200
+      FRONTEND_HEALTH_URL: http://localhost:4200/login
 
     steps:
       - name: Checkout code
@@ -92,7 +92,20 @@ jobs:
           }
           New-Item -ItemType Directory -Path $env:FRONTEND_DEPLOY_DIR -Force | Out-Null
           Copy-Item -Path "$env:FRONTEND_SERVE_DIR\*" -Destination $env:FRONTEND_DEPLOY_DIR -Recurse -Force
+          $indexPath = Join-Path $env:FRONTEND_DEPLOY_DIR "index.html"
+          if (-not (Test-Path $indexPath)) {
+            Write-Host "::error::Angular build missing index.html at $indexPath"
+            if (Test-Path $env:FRONTEND_SERVE_DIR) {
+              Get-ChildItem $env:FRONTEND_SERVE_DIR -Recurse | Select-Object -First 20 | ForEach-Object { Write-Host $_.FullName }
+            }
+            exit 1
+          }
           Write-Host "Angular build copied to $env:FRONTEND_DEPLOY_DIR"
+
+      - name: Install static file server
+        run: |
+          npm.cmd install serve --no-save
+          Write-Host "serve installed for SPA static hosting"
 
       - name: Restart Django Backend
         run: |
@@ -106,7 +119,7 @@ jobs:
 
           Write-Host "Starting Django application in $workDir ..."
           $backend = Start-Process python `
-            -ArgumentList @("manage.py", "runserver", "127.0.0.1:$($env:APP_PORT)", "--noreload") `
+            -ArgumentList @("manage.py", "runserver", "localhost:$($env:APP_PORT)", "--noreload") `
             -WorkingDirectory $workDir `
             -WindowStyle Hidden `
             -PassThru
@@ -117,22 +130,31 @@ jobs:
       - name: Restart Frontend
         run: |
           $workDir = $env:GITHUB_WORKSPACE
+          $deployDir = Join-Path $workDir $env:FRONTEND_DEPLOY_DIR
 
           Write-Host "Stopping existing frontend (if running)..."
           Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
-            Where-Object { $_.CommandLine -like '*serve*' -and $_.CommandLine -like "*$($env:FRONTEND_PORT)*" } |
+            Where-Object {
+              $_.CommandLine -like "*$($env:FRONTEND_PORT)*" -and
+              ($_.CommandLine -like '*http.server*' -or $_.CommandLine -like '*\serve*')
+            } |
             ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
           Start-Sleep -Seconds 3
 
-          Write-Host "Starting Angular frontend..."
-          $frontend = Start-Process npx.cmd `
-            -ArgumentList @("--yes", "serve", $env:FRONTEND_DEPLOY_DIR, "-l", $env:FRONTEND_PORT) `
+          Write-Host "Starting Angular frontend from $deployDir ..."
+          $servePath = Join-Path $workDir "node_modules\.bin\serve.cmd"
+          if (-not (Test-Path $servePath)) {
+            Write-Host "::error::serve.cmd not found at $servePath"
+            exit 1
+          }
+          $frontend = Start-Process $servePath `
+            -ArgumentList @("-s", $deployDir, "-l", $env:FRONTEND_PORT) `
             -WorkingDirectory $workDir `
             -WindowStyle Hidden `
             -PassThru
           $frontend.Id | Out-File -FilePath (Join-Path $workDir "frontend.pid") -Encoding ascii
           Write-Host "Frontend started with PID $($frontend.Id)"
-          Start-Sleep -Seconds 8
+          Start-Sleep -Seconds 5
 
       - name: Health Check
         run: |
@@ -172,8 +194,20 @@ jobs:
             Start-Sleep -Seconds 5
           }
           Write-Host "Frontend health check failed."
-          Get-Content (Join-Path $workDir "frontend.log") -Tail 50 -ErrorAction SilentlyContinue
-          Get-Content (Join-Path $workDir "frontend.err") -Tail 50 -ErrorAction SilentlyContinue
+          $deployDir = Join-Path $workDir $env:FRONTEND_DEPLOY_DIR
+          if (Test-Path $deployDir) {
+            Write-Host "Deploy dir contents:"
+            Get-ChildItem $deployDir | ForEach-Object { Write-Host $_.Name }
+          }
+          $pidFile = Join-Path $workDir "frontend.pid"
+          if (Test-Path $pidFile) {
+            $frontendPid = Get-Content $pidFile -ErrorAction SilentlyContinue
+            $proc = Get-Process -Id $frontendPid -ErrorAction SilentlyContinue
+            if ($proc) { Write-Host "Frontend process still running (PID $frontendPid)." }
+            else { Write-Host "Frontend process not running (PID $frontendPid)." }
+          }
+          Get-NetTCPConnection -LocalPort $env:FRONTEND_PORT -State Listen -ErrorAction SilentlyContinue |
+            ForEach-Object { Write-Host "Port $($env:FRONTEND_PORT) listener PID: $($_.OwningProcess)" }
           exit 1
 
       - name: Send Deployment Notification
