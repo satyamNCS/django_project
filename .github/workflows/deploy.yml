@@ -1,0 +1,182 @@
+name: Deploy Django SOS
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Build and Deploy
+    runs-on: self-hosted
+
+    env:
+      APP_NAME: SOSDjango
+      APP_PORT: 8000
+      HEALTH_URL: http://localhost:8000/
+      FRONTEND_REPO: satyamNCS/django_project_ui
+      FRONTEND_PORT: 4200
+      FRONTEND_SERVE_DIR: frontend/dist/ors/browser
+      FRONTEND_DEPLOY_DIR: deploy/frontend
+      FRONTEND_HEALTH_URL: http://localhost:4200
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Checkout frontend
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.FRONTEND_REPO }}
+          path: frontend
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install django django-cors-headers xhtml2pdf xlwt djangorestframework djangorestframework-simplejwt
+
+      - name: Prepare Django backend
+        run: python manage.py migrate --noinput
+
+      - name: Run Unit Tests
+        run: python manage.py test
+
+      - name: Build Angular
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Copy Angular build
+        run: |
+          rm -rf "${FRONTEND_DEPLOY_DIR}"
+          mkdir -p "${FRONTEND_DEPLOY_DIR}"
+          cp -r "${FRONTEND_SERVE_DIR}/." "${FRONTEND_DEPLOY_DIR}/"
+          echo "Angular build copied to ${FRONTEND_DEPLOY_DIR}"
+
+      - name: Restart Django Backend
+        run: |
+          echo "Stopping existing backend (if running)..."
+          pkill -f "manage.py runserver" || true
+          sleep 3
+
+          echo "Starting Django application..."
+          nohup python manage.py runserver 0.0.0.0:${APP_PORT} > app.log 2>&1 &
+          echo $! > app.pid
+          echo "Application started with PID $(cat app.pid)"
+
+      - name: Restart Frontend
+        run: |
+          echo "Stopping existing frontend (if running)..."
+          pkill -f "${FRONTEND_DEPLOY_DIR}" || pkill -f "serve.*${FRONTEND_PORT}" || true
+          sleep 3
+
+          echo "Starting Angular frontend..."
+          nohup npx --yes serve "${FRONTEND_DEPLOY_DIR}" -l "${FRONTEND_PORT}" > frontend.log 2>&1 &
+          echo $! > frontend.pid
+          echo "Frontend started with PID $(cat frontend.pid)"
+
+      - name: Health Check
+        run: |
+          echo "Waiting for backend to start..."
+          for i in {1..30}; do
+            if curl -sf "${HEALTH_URL}"; then
+              echo "Backend health check passed."
+              break
+            fi
+            echo "Backend attempt ${i}/30 - not ready yet..."
+            sleep 5
+            if [ "${i}" -eq 30 ]; then
+              echo "Backend health check failed."
+              tail -50 app.log || true
+              exit 1
+            fi
+          done
+
+          echo "Waiting for frontend to start..."
+          for i in {1..30}; do
+            if curl -sf "${FRONTEND_HEALTH_URL}"; then
+              echo "Frontend health check passed."
+              exit 0
+            fi
+            echo "Frontend attempt ${i}/30 - not ready yet..."
+            sleep 5
+          done
+          echo "Frontend health check failed."
+          tail -50 frontend.log || true
+          exit 1
+
+      - name: Send Deployment Notification
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "::notice title=Deployment Successful::Backend on port ${APP_PORT}, frontend on port ${FRONTEND_PORT}"
+          else
+            echo "::error title=Deployment Failed::Deployment failed. Check workflow logs."
+          fi
+
+      - name: Verify mail secrets
+        if: always()
+        env:
+          MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+          NOTIFY_EMAIL: ${{ secrets.NOTIFY_EMAIL }}
+        run: |
+          if [ -z "$MAIL_USERNAME" ] || [ -z "$MAIL_PASSWORD" ] || [ -z "$NOTIFY_EMAIL" ]; then
+            echo "::error::GitHub Secrets missing. Add MAIL_USERNAME, MAIL_PASSWORD, NOTIFY_EMAIL in repo Settings."
+            exit 1
+          fi
+          echo "Mail secrets are configured."
+
+      - name: Send Email Notification
+        if: always()
+        continue-on-error: true
+        env:
+          MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+          NOTIFY_EMAIL: ${{ secrets.NOTIFY_EMAIL }}
+          JOB_STATUS: ${{ job.status }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python3 << 'PYEOF'
+          import os, smtplib, ssl
+          from email.message import EmailMessage
+
+          user = os.environ["MAIL_USERNAME"].strip()
+          password = os.environ["MAIL_PASSWORD"].replace(" ", "").strip()
+          to_addr = os.environ["NOTIFY_EMAIL"].strip()
+          status = os.environ.get("JOB_STATUS", "unknown")
+          run_url = os.environ.get("RUN_URL", "")
+
+          msg = EmailMessage()
+          msg["Subject"] = f"Deploy {status} - Django SOS"
+          msg["From"] = user
+          msg["To"] = to_addr
+          msg.set_content(
+              f"Hello satyam,\n\n"
+              f"Pipeline status: {status}\n\n"
+              f"Backend:  http://localhost:8000/\n"
+              f"API:      http://localhost:8000/ORSAPI/api/College/\n"
+              f"Frontend: http://localhost:4200\n\n"
+              f"Run: {run_url}\n"
+          )
+
+          context = ssl.create_default_context()
+          with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
+              server.login(user, password)
+              server.send_message(msg)
+          print("Email sent successfully.")
+          PYEOF
